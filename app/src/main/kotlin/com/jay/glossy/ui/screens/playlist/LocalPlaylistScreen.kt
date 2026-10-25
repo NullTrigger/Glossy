@@ -114,6 +114,7 @@ import androidx.core.net.toUri
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
+import androidx.media3.common.Timeline
 import androidx.media3.exoplayer.offline.Download
 import androidx.media3.exoplayer.offline.DownloadRequest
 import androidx.media3.exoplayer.offline.DownloadService
@@ -187,6 +188,10 @@ fun LocalPlaylistScreen(
     val playerConnection = LocalPlayerConnection.current ?: return
     val isPlaying by playerConnection.isEffectivelyPlaying.collectAsStateWithLifecycle()
     val mediaMetadata by playerConnection.mediaMetadata.collectAsStateWithLifecycle()
+    // The player's own traversal order. It is the only place a shuffle order
+    // exists, so the up-next shelf reads it instead of the playlist's stored order.
+    val queueWindows by playerConnection.queueWindows.collectAsStateWithLifecycle()
+    val queueIndex by playerConnection.currentWindowIndex.collectAsStateWithLifecycle()
 
     val playlist by viewModel.playlist.collectAsStateWithLifecycle()
     val songs by viewModel.playlistSongs.collectAsStateWithLifecycle()
@@ -457,6 +462,11 @@ fun LocalPlaylistScreen(
                             UpNextShelf(
                                 songs = songs,
                                 currentSongId = mediaMetadata?.id,
+                                queueWindows = queueWindows,
+                                queueIndex = queueIndex,
+                                onSeekTo = { mediaItemIndex ->
+                                    playerConnection.player.seekToDefaultPosition(mediaItemIndex)
+                                },
                                 onPlayAt = { index ->
                                     playerConnection.playQueue(
                                         ListQueue(
@@ -1109,24 +1119,68 @@ fun LocalPlaylistHeader(
 
 fun uriToByteArray(context: Context, uri: Uri): ByteArray? = try { context.contentResolver.openInputStream(uri)?.use { it.readBytes() } } catch (_: SecurityException) { null }
 
+/** One card in the shelf, whichever order it was read from. */
+private data class UpNextCard(
+    val key: String,
+    val title: String,
+    val artist: String,
+    val thumbnailUrl: String?,
+    /** Media item to jump to in the player's queue, for a queued track. */
+    val queueItemIndex: Int? = null,
+    /** Position in this playlist, for the preview fallback. */
+    val playlistIndex: Int? = null,
+)
+
 /**
  * The shelf under the playlist header: the tracks that follow whatever is
  * playing, laid out sideways so they cost one row of vertical space instead of
- * pushing the list down. Tapping a card starts the playlist from that track, so
- * the shelf is a shortcut into the queue rather than a preview.
+ * pushing the list down.
+ *
+ * The order comes from the player's queue whenever this playlist is what is
+ * playing. That queue is the only place the shuffle order exists, so a shelf
+ * built from [songs] showed the playlist's stored order and, with shuffle on,
+ * the wrong tracks — the queue the listener asked for never appeared. Tapping a
+ * card jumps to that track in the queue, keeping the rest of the queue intact.
+ *
+ * The playlist's own order is still the fallback — nothing from it playing, or
+ * the queue has run out — and it wraps from the last track instead of emptying:
+ * an empty shelf removes a whole row the moment the final track starts, which
+ * shows up as the page jumping under the thumb.
  */
 @Composable
 private fun UpNextShelf(
     songs: List<PlaylistSong>,
     currentSongId: String?,
+    queueWindows: List<Timeline.Window>,
+    queueIndex: Int,
+    onSeekTo: (Int) -> Unit,
     onPlayAt: (Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    // Wrap around from the last track instead of emptying the shelf: an empty
-    // shelf would remove a whole row from the list the moment the final track
-    // starts playing, which shows up as the page jumping under the thumb.
-    val shelf = remember(songs, currentSongId) {
-        if (songs.isEmpty()) {
+    val cards = remember(songs, currentSongId, queueWindows, queueIndex) {
+        val playingFromThisPlaylist =
+            currentSongId != null && songs.any { it.song.id == currentSongId }
+        val queued =
+            if (playingFromThisPlaylist && queueIndex in queueWindows.indices) {
+                queueWindows
+                    .drop(queueIndex + 1)
+                    .take(6)
+                    .map { window ->
+                        val metadata = window.mediaItem.metadata
+                        UpNextCard(
+                            key = "queued-${window.firstPeriodIndex}",
+                            title = metadata?.title.orEmpty(),
+                            artist = metadata?.artists?.joinToString { it.name }.orEmpty(),
+                            thumbnailUrl = metadata?.thumbnailUrl,
+                            queueItemIndex = window.firstPeriodIndex,
+                        )
+                    }
+            } else {
+                emptyList()
+            }
+        if (queued.isNotEmpty()) {
+            queued
+        } else if (songs.isEmpty()) {
             emptyList()
         } else {
             val now = songs.indexOfFirst { it.song.id == currentSongId }
@@ -1135,10 +1189,19 @@ private fun UpNextShelf(
                 .map { (start + it) % songs.size }
                 .filter { it != now }
                 .take(6)
-                .map { index -> index to songs[index] }
+                .map { index ->
+                    val song = songs[index]
+                    UpNextCard(
+                        key = "playlist-${song.map.id}",
+                        title = song.song.song.title,
+                        artist = song.song.artists.joinToString { it.name },
+                        thumbnailUrl = song.song.thumbnailUrl,
+                        playlistIndex = index,
+                    )
+                }
         }
     }
-    if (shelf.isEmpty()) return
+    if (cards.isEmpty()) return
 
     Column(
         modifier = modifier
@@ -1155,12 +1218,14 @@ private fun UpNextShelf(
             contentPadding = PaddingValues(horizontal = 16.dp),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            items(shelf, key = { it.second.map.id }) { (index, song) ->
+            items(cards, key = { it.key }) { card ->
                 Column(
                     modifier = Modifier
                         .width(96.dp)
                         .clip(RoundedCornerShape(14.dp))
-                        .clickable { onPlayAt(index) },
+                        .clickable {
+                            card.queueItemIndex?.let(onSeekTo) ?: card.playlistIndex?.let(onPlayAt)
+                        },
                 ) {
                     Box(
                         modifier = Modifier
@@ -1169,14 +1234,14 @@ private fun UpNextShelf(
                             .background(MaterialTheme.colorScheme.surfaceContainerHighest),
                     ) {
                         AsyncImage(
-                            model = song.song.thumbnailUrl,
+                            model = card.thumbnailUrl,
                             contentDescription = null,
                             contentScale = ContentScale.Crop,
                             modifier = Modifier.fillMaxSize(),
                         )
                     }
                     Text(
-                        text = song.song.song.title,
+                        text = card.title,
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.onBackground,
                         maxLines = 1,
@@ -1184,7 +1249,7 @@ private fun UpNextShelf(
                         modifier = Modifier.padding(top = 6.dp),
                     )
                     Text(
-                        text = song.song.artists.joinToString { it.name },
+                        text = card.artist,
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
