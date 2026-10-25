@@ -139,6 +139,7 @@ import com.jay.glossy.constants.PlaylistSongSortTypeKey
 import com.jay.glossy.constants.SwipeToRemoveSongKey
 import com.jay.glossy.db.entities.Playlist
 import com.jay.glossy.db.entities.PlaylistSong
+import com.jay.glossy.extensions.metadata
 import com.jay.glossy.extensions.move
 import com.jay.glossy.extensions.toMediaItem
 import com.metrolist.models.toMediaMetadata
