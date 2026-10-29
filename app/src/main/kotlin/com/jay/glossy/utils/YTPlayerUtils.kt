@@ -542,13 +542,23 @@ object YTPlayerUtils {
                 null
             }
 
+        // The master's own lifetime can be shorter than YouTube's URL. Using
+        // the shorter one keeps a stale master URL out of the stream cache,
+        // which would otherwise hand a 403 to the next song that reuses it.
+        val streamLifetime =
+            if (lossless == null) {
+                streamExpiresInSeconds
+            } else {
+                minOf(streamExpiresInSeconds, lossless.expiresInSeconds)
+            }
+
         PlaybackData(
             audioConfig,
             videoDetails,
             playbackTracking,
             format,
             lossless?.url ?: streamUrl,
-            streamExpiresInSeconds,
+            streamLifetime,
             streamClient = if (lossless != null) LOSSLESS_CLIENT else successClient ?: "unknown",
             lossless = lossless,
         )

@@ -86,6 +86,9 @@ import androidx.media3.exoplayer.source.ProgressiveMediaSource
 import androidx.media3.exoplayer.source.ShuffleOrder.DefaultShuffleOrder
 import androidx.media3.extractor.DefaultExtractorsFactory
 import androidx.media3.extractor.ExtractorsFactory
+import androidx.media3.extractor.flac.FlacExtractor
+import androidx.media3.extractor.mp3.Mp3Extractor
+import androidx.media3.extractor.wav.WavExtractor
 import androidx.media3.extractor.mkv.MatroskaExtractor
 import androidx.media3.extractor.mp4.FragmentedMp4Extractor
 import androidx.media3.extractor.mp4.Mp4Extractor
@@ -4082,7 +4085,18 @@ class MusicService :
             DefaultMediaSourceFactory(
                 createDataSourceFactory(),
                 ExtractorsFactory {
-                    arrayOf(MatroskaExtractor(), FragmentedMp4Extractor(), Mp4Extractor())
+                    arrayOf(
+                        MatroskaExtractor(),
+                        FragmentedMp4Extractor(),
+                        Mp4Extractor(),
+                        // A lossless master is a bare .flac/.wav/.mp3 file rather
+                        // than a track inside a video container, so the stream
+                        // extractors need these; without them the master URL
+                        // resolves and then fails to open.
+                        FlacExtractor(),
+                        WavExtractor(),
+                        Mp3Extractor(),
+                    )
                 },
             )
         // Device files need none of the stream machinery: no cache (a content
