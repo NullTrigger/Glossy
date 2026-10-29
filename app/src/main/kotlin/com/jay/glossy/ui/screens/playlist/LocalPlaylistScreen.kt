@@ -970,7 +970,7 @@ fun LocalPlaylistHeader(
                         onClick = {
                             if (isCustomThumbnail) {
                                 menuState.show(
-                                    {
+                                    content = {
                                         CustomThumbnailMenu(
                                             onEdit = { pickLauncher.launch(PickVisualMediaRequest(mediaType = ActivityResultContracts.PickVisualMedia.ImageOnly)) },
                                             onRemove = {

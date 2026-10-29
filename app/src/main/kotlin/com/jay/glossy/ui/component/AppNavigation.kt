@@ -236,10 +236,21 @@ fun GlossyBottomNav(
     val glass = GlossyPalette.MiniBar
     val rim = GlossyPalette.Border
 
-    // Keep the navigation bar on its solid palette surface for now. Haze 1.1.1
-    // can throw at draw time when a HazeChild has no backgroundColor configured;
-    // bypass the child blur node so the app can launch reliably on affected devices.
-    // The existing bar background below still paints the intended MiniBar color.
+    // The bar's lava wash. It is the only surface in the app that animates its
+    // background: the motion is deliberately scoped to the navigation pill and
+    // its search orb, not painted over the screens behind them. Ambient motion
+    // is the app's existing reduce-motion switch, so the bar freezes with the
+    // rest of the decorations instead of ignoring the setting.
+    val motionEnabled = rememberAmbientMotionEnabled()
+    val navFluid = rememberNavFluid(motionEnabled)
+    val fluidRose = GlossyPalette.Accent
+    val fluidViolet = MaterialTheme.colorScheme.tertiary
+    val fluidShade = GlossyPalette.AccentSoft
+
+    // Keep the navigation bar on its palette surface rather than a Haze child:
+    // Haze 1.1.1 can throw at draw time when a HazeChild has no backgroundColor
+    // configured, and the app has to launch on those devices. The wash below
+    // paints [glass] first, so the bar keeps the MiniBar tone it had.
 
     val barHeight = if (slimNav) 56.dp else GlossyDimens.NavPillHeight
     val pillHeight = if (slimNav) 50.dp else 62.dp
@@ -263,7 +274,13 @@ fun GlossyBottomNav(
                     // strip painted onto it.
                     .shadow(elevation = 12.dp, shape = pill, clip = false)
                     .clip(pill)
-                    .background(glass)
+                    .navFluidWash(
+                        base = glass,
+                        rose = fluidRose,
+                        violet = fluidViolet,
+                        shade = fluidShade,
+                        fluid = navFluid,
+                    )
                     .border(GlossyDimens.Hairline, rim, pill)
                     .padding(horizontal = 5.dp, vertical = 5.dp),
             horizontalArrangement = Arrangement.spacedBy(2.dp),
@@ -322,7 +339,13 @@ fun GlossyBottomNav(
                         .size(orbSize)
                         .shadow(elevation = 12.dp, shape = CircleShape, clip = false)
                         .clip(CircleShape)
-                            .background(glass)
+                            .navFluidWash(
+                                base = glass,
+                                rose = fluidRose,
+                                violet = fluidViolet,
+                                shade = fluidShade,
+                                fluid = navFluid,
+                            )
                         .border(GlossyDimens.Hairline, rim, CircleShape)
                         // A press opens search; holding it opens recognition.
                         .combinedClickable(

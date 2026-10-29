@@ -109,6 +109,7 @@ import com.jay.glossy.constants.AndroidAutoTargetPlaylistKey
 import com.jay.glossy.constants.AudioNormalizationKey
 import com.jay.glossy.constants.AudioOffload
 import com.jay.glossy.constants.AudioQualityKey
+import com.jay.glossy.constants.DefaultAudioQuality
 import com.jay.glossy.constants.LosslessSourceKey
 import com.jay.glossy.lossless.LosslessSource
 import com.jay.glossy.constants.CanvasOnMobileDataKey
@@ -824,9 +825,9 @@ class MusicService :
             // Resolved by name alone: the stored value is the tier's own name,
             // including VERY_HIGH, which now means itself. A tier this build no
             // longer knows (a stored OPUS from an older version) resolves to
-            // nothing and falls back to AUTO.
+            // nothing and falls back to the high-quality default.
             com.jay.glossy.constants.AudioQuality.entries.find { it.name == value }
-        } ?: com.jay.glossy.constants.AudioQuality.AUTO
+        } ?: DefaultAudioQuality
         playerVolume = MutableStateFlow((startupPrefs!![PlayerVolumeKey] ?: 1f).coerceIn(0f, 1f))
 
         initializeCast()
@@ -872,7 +873,7 @@ class MusicService :
                 .map {
                     it[AudioQualityKey]?.let { value ->
                         com.jay.glossy.constants.AudioQuality.entries.find { it.name == value }
-                    } ?: com.jay.glossy.constants.AudioQuality.AUTO
+                    } ?: DefaultAudioQuality
                 }.distinctUntilChanged()
                 .collect { newQuality ->
                     val oldQuality = audioQuality
@@ -4898,14 +4899,18 @@ class MusicService :
      * Initialize Google Cast support
      */
     private fun initializeCast() {
-        if (dataStore.get(com.jay.glossy.constants.EnableGoogleCastKey, true)) {
-            try {
-                castConnectionHandler = CastConnectionHandler(this, scope, this)
-                castConnectionHandler?.initialize()
+        try {
+            // The handler is created even when Cast is switched off: the setting
+            // can be enabled later in the session, and the cast UI initializes the
+            // handler at that point. Only the SDK startup waits for the setting.
+            val handler = CastConnectionHandler(this, scope, this)
+            castConnectionHandler = handler
+            if (dataStore.get(com.jay.glossy.constants.EnableGoogleCastKey, true)) {
+                handler.initialize()
                 timber.log.Timber.d("Google Cast initialized")
-            } catch (e: Exception) {
-                timber.log.Timber.e(e, "Failed to initialize Google Cast")
             }
+        } catch (e: Exception) {
+            timber.log.Timber.e(e, "Failed to initialize Google Cast")
         }
     }
 

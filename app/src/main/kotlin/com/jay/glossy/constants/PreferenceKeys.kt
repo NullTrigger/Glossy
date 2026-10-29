@@ -442,6 +442,18 @@ enum class AudioQuality {
 }
 
 /**
+ * The quality the player asks for when the listener has never chosen one.
+ *
+ * This is [AudioQuality.VERY_HIGH] rather than [AudioQuality.AUTO] on purpose:
+ * `AUTO` caps a metered connection at 128 kbps, which is the difference most
+ * listeners hear as "low quality" on a phone. The highest tier costs roughly
+ * 1–2 MB per minute of Opus and is still bounded by what the account is
+ * entitled to, so it is the better default for a music player. An explicit
+ * choice in settings always wins — this only decides the untouched case.
+ */
+val DefaultAudioQuality = AudioQuality.VERY_HIGH
+
+/**
  * Whether the player and the queue header name the stream that is actually
  * playing — its container, codec and bitrate, e.g. `WebM · Opus · 130 kbps`.
  *

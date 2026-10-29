@@ -394,7 +394,8 @@ fun PlayerMenu(
                             contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
                         ),
                     ),
-                modifier = Modifier.padding(horizontal = 4.dp),
+                // No extra inset: the sheet no longer pads this menu, and the
+                // tiles should line up with the cards below them.
                 columns = if (isListenTogetherGuest) 2 else 3,
             )
         }
@@ -723,10 +724,11 @@ private fun EchoMenuGroup(items: List<Material3MenuItemData>) {
         Column(modifier = Modifier.fillMaxWidth()) {
             items.forEachIndexed { index, item ->
                 if (index > 0) {
+                    // Full width, as in the design: an inset rule would read as
+                    // a second alignment grid next to the tiles' own column.
                     HorizontalDivider(
                         thickness = 1.dp,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.06f),
-                        modifier = Modifier.padding(start = 64.dp, end = 14.dp),
                     )
                 }
                 EchoMenuRow(item = item)
