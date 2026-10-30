@@ -46,6 +46,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -54,6 +56,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
+import coil3.toBitmap
 import com.jay.glossy.R
 
 /** Height of the reel itself, before the title block. */
@@ -82,23 +85,43 @@ fun PlaylistReelHeader(
     onOwnerClick: (() -> Unit)? = null,
     downloadActive: Boolean = false,
     statsText: String? = null,
+    extraToolbarActions: (@Composable () -> Unit)? = null,
+    onArtworkLoaded: ((ImageBitmap) -> Unit)? = null,
 ) {
+    val typography = MaterialTheme.typography
+    val titleStyle = remember(typography) {
+        typography.headlineSmall.copy(fontWeight = FontWeight.Bold)
+    }
+    val ownerStyle = remember(typography) {
+        typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold)
+    }
+    val playStyle = remember(typography) {
+        typography.titleSmall.copy(fontWeight = FontWeight.Bold)
+    }
+    // The scrim sits under the scrolling list, so it must not be rebuilt on
+    // every recomposition the player state triggers.
+    val scrim = remember(MaterialTheme.colorScheme.background) {
+        Brush.verticalGradient(
+            0f to Color.Black.copy(alpha = 0.38f),
+            0.55f to Color.Black.copy(alpha = 0.08f),
+            1f to MaterialTheme.colorScheme.background.copy(alpha = 0.62f),
+        )
+    }
+
     Column(modifier = modifier.fillMaxWidth()) {
         Box(
             modifier = Modifier.fillMaxWidth().height(ReelHeight),
         ) {
-            PlaylistReelArtwork(thumbnails = thumbnails, modifier = Modifier.fillMaxSize())
+            PlaylistReelArtwork(
+                thumbnails = thumbnails,
+                onArtworkLoaded = onArtworkLoaded,
+                modifier = Modifier.fillMaxSize(),
+            )
 
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(
-                        Brush.verticalGradient(
-                            0f to Color.Black.copy(alpha = 0.38f),
-                            0.55f to Color.Black.copy(alpha = 0.08f),
-                            1f to MaterialTheme.colorScheme.background.copy(alpha = 0.62f),
-                        ),
-                    ),
+                    .background(scrim),
             )
 
             Row(
@@ -128,6 +151,7 @@ fun PlaylistReelHeader(
 
                 Surface(shape = CircleShape, color = ReelGlass, contentColor = Color.White) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
+                        extraToolbarActions?.invoke()
                         ReelToolbarButton(onClick = onSearch) {
                             Icon(
                                 painter = painterResource(R.drawable.search),
@@ -179,7 +203,7 @@ fun PlaylistReelHeader(
         ) {
             Text(
                 text = title,
-                style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
+                style = titleStyle,
                 color = MaterialTheme.colorScheme.onBackground,
                 textAlign = TextAlign.Center,
                 maxLines = 2,
@@ -187,7 +211,7 @@ fun PlaylistReelHeader(
             )
             Text(
                 text = owner,
-                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+                style = ownerStyle,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
                 maxLines = 1,
@@ -243,7 +267,7 @@ fun PlaylistReelHeader(
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         text = stringResource(R.string.play),
-                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                        style = playStyle,
                     )
                 }
             }
@@ -310,7 +334,11 @@ private fun ReelRoundButton(onClick: () -> Unit, content: @Composable () -> Unit
  * kinds start on the same line.
  */
 @Composable
-private fun PlaylistReelArtwork(thumbnails: List<String?>, modifier: Modifier = Modifier) {
+private fun PlaylistReelArtwork(
+    thumbnails: List<String?>,
+    modifier: Modifier = Modifier,
+    onArtworkLoaded: ((ImageBitmap) -> Unit)? = null,
+) {
     val images = remember(thumbnails) { thumbnails.filterNotNull().distinct().take(4) }
 
     if (images.isEmpty()) {
@@ -333,6 +361,7 @@ private fun PlaylistReelArtwork(thumbnails: List<String?>, modifier: Modifier = 
             model = images.first(),
             contentDescription = null,
             contentScale = ContentScale.Crop,
+            onSuccess = { state -> onArtworkLoaded?.invoke(state.result.image.toBitmap().asImageBitmap()) },
             modifier = modifier,
         )
         return
@@ -357,6 +386,9 @@ private fun PlaylistReelArtwork(thumbnails: List<String?>, modifier: Modifier = 
                         model = url,
                         contentDescription = null,
                         contentScale = ContentScale.Crop,
+                        onSuccess = { state ->
+                            onArtworkLoaded?.invoke(state.result.image.toBitmap().asImageBitmap())
+                        },
                         modifier = Modifier.weight(1f).fillMaxHeight(),
                     )
                 }
