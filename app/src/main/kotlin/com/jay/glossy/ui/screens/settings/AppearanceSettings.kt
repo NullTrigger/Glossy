@@ -1416,8 +1416,6 @@ fun AppearanceSettings(
                         Text(
                             when (greetingAnimation) {
                                 GreetingAnimation.OFF -> "Off — the plain card"
-                                GreetingAnimation.NEON_GLOW -> "Cars"
-                                GreetingAnimation.SUNSET_TRAIN -> "Sunset train"
                                 GreetingAnimation.BOHO_HOME -> "Reddish tree"
                                 GreetingAnimation.HEMMING -> "Luffy"
                                 GreetingAnimation.STREET_MARKET -> "Sunset samurai"
@@ -2936,8 +2934,6 @@ private fun canvasHealthLabelResource(health: CanvasUrlHealth): Int =
 private fun greetingAnimationLabel(animation: GreetingAnimation): String =
     when (animation) {
         GreetingAnimation.OFF -> "Off (plain card)"
-        GreetingAnimation.NEON_GLOW -> "Cars"
-        GreetingAnimation.SUNSET_TRAIN -> "Sunset train"
         GreetingAnimation.BOHO_HOME -> "Reddish tree"
         GreetingAnimation.HEMMING -> "Luffy"
         GreetingAnimation.STREET_MARKET -> "Sunset samurai"

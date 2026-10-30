@@ -164,8 +164,6 @@ val ActiveDesignStyle = DesignStyle.MATERIALISTIC
  */
 enum class GreetingAnimation {
     OFF,
-    NEON_GLOW,
-    SUNSET_TRAIN,
 
     // Extra silent loop clips for the greeting card. Named for their subject
     // rather than the file they came from, so the picker says what the card

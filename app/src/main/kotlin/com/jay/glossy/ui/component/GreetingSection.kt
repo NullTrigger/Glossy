@@ -206,8 +206,6 @@ private fun GreetingVideoLoop(
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val rawRes = when (animation) {
-        GreetingAnimation.NEON_GLOW -> R.raw.greeting_neon
-        GreetingAnimation.SUNSET_TRAIN -> R.raw.greeting_sunset
         GreetingAnimation.BOHO_HOME -> R.raw.greeting_boho
         GreetingAnimation.HEMMING -> R.raw.greeting_hemming
         GreetingAnimation.STREET_MARKET -> R.raw.greeting_market
